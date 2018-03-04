@@ -35,9 +35,7 @@ build/Release
 # Dependency directories
 node_modules/
 
-## ignore generated JavaScript files
-functions/**/*.js
-functions/**/*.js.map
+
 
 # Typescript v1 declaration files
 typings/
