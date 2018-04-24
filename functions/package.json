@@ -13,7 +13,8 @@
     "firebase-admin": "~5.8.1",
     "firebase-functions": "^0.8.1",
     "i18n": "^0.8.3",
-    "sprintf-js": "^1.0.3"
+    "sprintf-js": "^1.0.3",
+    "@google-cloud/datastore": "1.1.0"
   },
   "devDependencies": {
     "eslint": "^4.12.0",

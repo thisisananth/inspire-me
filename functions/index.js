@@ -3,7 +3,10 @@
 process.env.DEBUG = 'actions-on-google:*';
 const { DialogflowApp } = require('actions-on-google');
 const functions = require('firebase-functions');
+const Datastore = require('@google-cloud/datastore');
 
+// Instantiate a datastore client
+const datastore = Datastore();
 
 
 const Actions = {
@@ -57,16 +60,20 @@ const Actions = {
 
   [Actions.START_APP] () {
     this.app.setContext(Contexts.ONE_MORE);
-    this.app.ask(`<speak> Welcome to InspireMe. With great quotes and inspiring passages, I will inspire you.<break time="3s"/>
-     Here's one. Real Artists Ship. This was said by Steve Jobs telling us to ship our work and hold back.
-     <audio src="https://actions.google.com/sounds/v1/water/waves_crashing_on_rock_beach.ogg" clipBegin="10s" clipEnd="13s">Consider the quote!</audio>
-     Do you want to listen to another quote? </speak>  `);
-     
+    const initMessage = ` Welcome to Inspire Me. With great quotes and inspiring passages, I will inspire you.<break time="2s"/>`;
+    if(this.app.hasSurfaceCapabilty(this.app.SurfaceCapabilities.SCREEN_OUTPUT)){
+      getQuoteFromDataStore( getQuoteFromDsWithApp(this.app,initMessage,true) );
+    }else{
+      getQuoteFromDataStore( getQuoteFromDsWithApp(this.app,initMessage,false) );
+    }
+      
   }
 
   [Actions.ONCE_MORE_YES] () {
       this.app.setContext(Contexts.ONE_MORE);
-      this.app.ask("Great! Here is another one. Life gives to the givers and takes from the takers. This was said by somexyz");
+      const initMessage = `Great! Here is another one.<break time="1s"/>`;
+      getQuoteFromDataStore( getQuoteFromDsWithApp(this.app,initMessage) );  
+      
   }
 
   [Actions.ONCE_MORE_NO] () {
@@ -89,6 +96,60 @@ const Actions = {
 }
 
 
+
+
+}
+
+function getRandomNumber(){
+  return  Math.floor((Math.random()*28));
+}
+
+function getQuoteFromDataStore(askFunction){
+  let randomQuoteNum = getRandomNumber();
+  console.log("the id of the quote is: quote_"+randomQuoteNum);
+  const key = datastore.key(['quote', 'quote_'+randomQuoteNum]);
+  console.log("Querying datastore for the quote..."+key);
+  let readableQuote = '';
+  datastore.get(key,(err,entity) => {
+    if(!err){
+      console.log('entity:'+entity.quote);
+     askFunction(entity);
+     
+    }else{
+      console.log('Error occurred');
+    }
+  });
+}
+
+function buildReadableQuoteFromEntity(entity){
+  let readableQuote =  entity.quote + 
+     `<break time="1s"/> This was said by ` + entity.author + ` `  ;
+     if(entity.comments){
+       readableQuote +=  entity.comments + ` `;
+     }
+     return readableQuote;
+}
+
+function getEndingMessage(){
+return `  <audio src="https://actions.google.com/sounds/v1/water/waves_crashing_on_rock_beach.ogg" clipBegin="10s" clipEnd="13s">Consider the quote!</audio>
+     Do you want to listen to another quote?`;
+}
+
+function getQuoteFromDsWithApp(app,initMessage,hasScreen){
+
+  console.log('app in cl:'+app);
+ return entity => {
+   if(hasScreen){
+     const response = app.buildRichResponse();
+     response.addSimpleResponse(initMessage);
+     response.addBasicCard("**"+entity.quote+"**"+"\n"+"-"+entity.author);
+     response.addSimpleResponse("Do you want to see another quote?");
+     response.addSuggestions(["yes","no"]);
+    app.ask(response);
+   }else{
+    app.ask(`<speak> `+ initMessage +  buildReadableQuoteFromEntity(entity)   + getEndingMessage() + ` </speak>  `);
+   }
+  };
 }
 
 // HTTP Cloud Function for Firebase handler
