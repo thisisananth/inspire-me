@@ -76,7 +76,7 @@ app.intent('Default Fallback Intent', (conv) => {
 
 function getRandomNumber(){
 
-  return  Math.floor((Math.random()*27)+1);
+  return  Math.random();
 }
 
 
@@ -116,21 +116,38 @@ speech: `<speak> ` +  buildReadableQuoteFromEntity(entity)   + getEndingMessage(
  }
 
 function getQuote(){
+  let randomQuoteNum = getRandomNumber();
+  let query = datastore.createQuery('quotes').order('rndFlt').filter('rndFlt','>',randomQuoteNum).limit(1)
+  let queryAny = datastore.createQuery('quotes').order('rndFlt').limit(1)
   return new Promise(((resolve,reject) => {
-    let randomQuoteNum = getRandomNumber();
-  console.log("the id of the quote is: quote_"+randomQuoteNum);
-  const key = datastore.key(['quote', 'quote_'+randomQuoteNum]);
-  console.log("Querying datastore for the quote..."+key);
+   
+  
   let readableQuote = '';
-  datastore.get(key,(err,entity) => {
+  datastore.runQuery(query,(err,entities) => {
     if(!err){
-      console.log('entity:'+entity.quote);
-    resolve(entity);
+     if(entities.length>0){
+       console.log('Got result from default query');
+      resolve(entities[0]);
+     }else{
+       datastore.runQuery(queryAny,(err,entities) => {
+         if(!err){
+          console.log('Got result from queryAny query');
+           resolve(entities[0]);
+         }else{
+           reject(console.log('Error occured'));
+         }
+       })
+     }
+    
     }else{
      reject(console.log('Error occured'));
     }
   });
+
+  
   }));
+
+ 
 }
 
 // HTTP Cloud Function for Firebase handler
